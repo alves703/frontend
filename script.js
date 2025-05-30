@@ -1,5 +1,5 @@
 // Configuração da API
-const API_URL = 'https://web-production-3f3de.up.railway.app'; // Alterar para URL de produção quando estiver em produçãO
+const API_URL = 'https://web-production-3f3de.up.railway.app'; // Alterar para URL de produção quando estiver em produção
 
 // Elementos do DOM
 const initialCapitalInput = document.getElementById('initial-capital');

@@ -1,62 +1,114 @@
 // Configuração da API
-const API_URL = 'https://web-production-3f3de.up.railway.app'; // Alterar para URL de produção quando estiver em produção
+const API_URL = 'https://web-production-3f3de.up.railway.app';
 
 // Elementos do DOM
-const initialCapitalInput = document.getElementById('initial-capital');
-const totalOperationsInput = document.getElementById('total-operations');
-const winOperationsInput = document.getElementById('win-operations');
-const payoutInput = document.getElementById('payout');
-const entryValueInput = document.getElementById('entry-value');
-const profitPerOperationInput = document.getElementById('profit-per-operation');
-const currentCapitalDisplay = document.getElementById('current-capital');
-const winsDisplay = document.getElementById('wins');
-const lossesDisplay = document.getElementById('losses');
-const totalProfitDisplay = document.getElementById('total-profit');
-const operationsHistoryTable = document.getElementById('operations-history');
-const winBtn = document.getElementById('win-btn');
-const lossBtn = document.getElementById('loss-btn');
-const resetBtn = document.getElementById('reset-btn');
-const riskWarning = document.getElementById('risk-warning');
+let capitalInicialInput;
+let totalOperacoesInput;
+let operacoesGanhoInput;
+let payoutFixoInput;
+let valorEntradaInput;
+let lucroPorOperacaoInput;
+let capitalAtualSpan;
+let lucroAcumuladoSpan;
+let acertosSpan;
+let errosSpan;
+let historicoTableBody;
 
-// Elementos do Chat
-const chatMessages = document.getElementById('chat-messages');
-const messageInput = document.getElementById('message-input');
-const usernameInput = document.getElementById('username');
-const sendBtn = document.getElementById('send-btn');
+// Inicialização
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM fully loaded and parsed');
 
-// Elementos dos Sinais
-const signalsContainer = document.getElementById('signals-container');
+    // Inicializar elementos do DOM
+    capitalInicialInput = document.getElementById('capital-inicial');
+    totalOperacoesInput = document.getElementById('total-operacoes');
+    operacoesGanhoInput = document.getElementById('operacoes-ganho');
+    payoutFixoInput = document.getElementById('payout-fixo');
+    valorEntradaInput = document.getElementById('valor-entrada'); // Readonly, updated by backend?
+    lucroPorOperacaoInput = document.getElementById('lucro-operacao'); // Readonly, updated by backend?
+    capitalAtualSpan = document.getElementById('capital-atual');
+    lucroAcumuladoSpan = document.getElementById('lucro-acumulado');
+    acertosSpan = document.getElementById('acertos');
+    errosSpan = document.getElementById('erros');
+    historicoTableBody = document.getElementById('historico-body');
 
-// Variável para controlar requisições em andamento
-let isRequestInProgress = false;
+    console.log('DOM elements initialized');
 
-// Função para mostrar mensagem de erro
-function showError(message) {
-    alert(`Erro: ${message}`);
-    console.error(message);
-}
-
-// Função para formatar valores monetários
-function formatCurrency(value) {
-    if (value === null || value === undefined || isNaN(value)) {
-        return 'R$ 0,00';
+    // Adicionar event listeners para inputs que atualizam a planilha
+    if (capitalInicialInput) {
+        capitalInicialInput.addEventListener('input', () => {
+            console.log('Input event fired for capital_inicial');
+            updateCell('capital_inicial', capitalInicialInput.value);
+        });
+    } else {
+        console.error('Element with ID capital-inicial not found');
     }
-    return `R$ ${parseFloat(value).toFixed(2)}`;
-}
 
-// Função para atualizar os dados na planilha
-async function updateSpreadsheet(field, value) {
-    if (isRequestInProgress) {
-        console.log('Requisição em andamento, aguarde...');
-        return false;
+    if (totalOperacoesInput) {
+        totalOperacoesInput.addEventListener('input', () => {
+            console.log('Input event fired for total_operacoes');
+            updateCell('total_operacoes', totalOperacoesInput.value);
+        });
+    } else {
+        console.error('Element with ID total-operacoes not found');
     }
-    
-    isRequestInProgress = true;
-    
+
+    if (operacoesGanhoInput) {
+        operacoesGanhoInput.addEventListener('input', () => {
+            console.log('Input event fired for operacoes_com_ganho');
+            updateCell('operacoes_com_ganho', operacoesGanhoInput.value);
+        });
+    } else {
+        console.error('Element with ID operacoes-ganho not found');
+    }
+
+    if (payoutFixoInput) {
+        payoutFixoInput.addEventListener('input', () => {
+            console.log('Input event fired for payout');
+            updateCell('payout', payoutFixoInput.value);
+        });
+    } else {
+        console.error('Element with ID payout-fixo not found');
+    }
+
+    // Botões
+    const btnWin = document.getElementById('btn-win');
+    if (btnWin) {
+        btnWin.addEventListener('click', registrarWin);
+    } else {
+        console.error('Element with ID btn-win not found');
+    }
+
+    const btnLoss = document.getElementById('btn-loss');
+    if (btnLoss) {
+        btnLoss.addEventListener('click', registrarLoss);
+    } else {
+        console.error('Element with ID btn-loss not found');
+    }
+
+    const btnZerar = document.getElementById('btn-zerar');
+    if (btnZerar) {
+        btnZerar.addEventListener('click', zerar);
+    } else {
+        console.error('Element with ID btn-zerar not found');
+    }
+
+    // Carregar dados iniciais UMA VEZ ao carregar a página
+    console.log('Calling carregarDados initially');
+    carregarDados();
+
+    // REMOVIDO: Atualizar dados a cada 5 segundos
+    // console.log('Setting interval for carregarDados');
+    // setInterval(carregarDados, 5000);
+});
+
+// Função para atualizar célula na planilha (usada pelos inputs)
+async function updateCell(field, value) {
+    console.log(`Attempting to update cell: field=${field}, value=${value}`);
     try {
         const data = {};
         data[field] = value;
-        
+
+        console.log('Sending fetch request to /update with data:', data);
         const response = await fetch(`${API_URL}/update`, {
             method: 'POST',
             headers: {
@@ -64,287 +116,274 @@ async function updateSpreadsheet(field, value) {
             },
             body: JSON.stringify(data)
         });
-        
+        console.log('Received response from /update:', response);
+
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Erro ao atualizar planilha');
+            const errorText = await response.text();
+            console.error(`Error response body from /update: ${errorText}`);
+            throw new Error(`Erro ao atualizar célula: ${response.status} - ${response.statusText}`);
         }
-        
-        // Atualizar dados exibidos após cada alteração
-        fetchData();
-        
-        return true;
+
+        const result = await response.json();
+        console.log('Célula atualizada com sucesso:', result);
+        // Talvez chamar carregarDados() aqui se a atualização de uma célula deve refletir em outras?
+        // Ou melhor, o backend /update deveria retornar os dados atualizados?
+        // Por enquanto, não faz nada visualmente, apenas atualiza a planilha.
     } catch (error) {
-        showError(`Erro ao atualizar dados: ${error.message}`);
-        return false;
-    } finally {
-        isRequestInProgress = false;
+        console.error('Erro detalhado ao atualizar célula:', error);
+        alert(`Erro ao comunicar com o servidor (${field}). Verifique o console para detalhes.`);
     }
 }
 
-// Função para registrar vitória (WIN)
-async function registerWin() {
-    if (isRequestInProgress) {
-        showError('Operação em andamento, aguarde...');
-        return false;
+// Função para atualizar a interface do usuário com os dados recebidos
+function atualizarUI(data) {
+    console.log('Updating UI with data:', data);
+    if (!data) {
+        console.error('No data received to update UI');
+        return;
     }
-    
-    isRequestInProgress = true;
-    winBtn.disabled = true;
-    
+
+    // Atualizar métricas
+    if (capitalAtualSpan) capitalAtualSpan.textContent = formatarValor(data.capital_atual);
+    if (lucroAcumuladoSpan) lucroAcumuladoSpan.textContent = formatarValor(data.lucro_acumulado);
+    if (acertosSpan) acertosSpan.textContent = data.acertos !== undefined ? data.acertos : '0';
+    if (errosSpan) errosSpan.textContent = data.erros !== undefined ? data.erros : '0';
+
+    // Atualizar campos calculados (se vierem do backend)
+    if (valorEntradaInput && data.valor_entrada !== undefined) valorEntradaInput.value = data.valor_entrada.toFixed(2).replace('.', ',');
+    if (lucroPorOperacaoInput && data.lucro_operacao !== undefined) lucroPorOperacaoInput.value = data.lucro_operacao.toFixed(2).replace('.', ',');
+
+    // Atualizar histórico
+    atualizarHistorico(data.historico);
+}
+
+// Função para registrar vitória (WIN)
+async function registrarWin() {
+    console.log('Attempting to register WIN');
+    const btnWin = document.getElementById('btn-win');
     try {
+        btnWin.disabled = true;
+
+        console.log('Sending fetch request to /win');
         const response = await fetch(`${API_URL}/win`, {
             method: 'POST'
         });
-        
+        console.log('Received response from /win:', response);
+
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Erro ao registrar vitória');
+            const errorText = await response.text();
+            console.error(`Error response body from /win: ${errorText}`);
+            throw new Error(`Erro ao registrar vitória: ${response.status} - ${response.statusText}`);
         }
-        
-        // Atualizar dados exibidos após registrar vitória
-        fetchData();
-        
-        return true;
+
+        const result = await response.json(); // Backend deve retornar os dados atualizados
+        console.log('Vitória registrada com sucesso, received data:', result);
+
+        // Atualizar UI com os dados retornados pelo backend
+        atualizarUI(result);
+
     } catch (error) {
-        showError(`Erro ao registrar vitória: ${error.message}`);
-        return false;
+        console.error('Erro detalhado ao registrar vitória:', error);
+        alert('Erro ao comunicar com o servidor (WIN). Verifique o console para detalhes.');
     } finally {
-        isRequestInProgress = false;
-        winBtn.disabled = false;
+        if (btnWin) btnWin.disabled = false;
     }
 }
 
 // Função para registrar derrota (LOSS)
-async function registerLoss() {
-    if (isRequestInProgress) {
-        showError('Operação em andamento, aguarde...');
-        return false;
-    }
-    
-    isRequestInProgress = true;
-    lossBtn.disabled = true;
-    
+async function registrarLoss() {
+    console.log('Attempting to register LOSS');
+    const btnLoss = document.getElementById('btn-loss');
     try {
+        btnLoss.disabled = true;
+
+        console.log('Sending fetch request to /loss');
         const response = await fetch(`${API_URL}/loss`, {
             method: 'POST'
         });
-        
+        console.log('Received response from /loss:', response);
+
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Erro ao registrar derrota');
+            const errorText = await response.text();
+            console.error(`Error response body from /loss: ${errorText}`);
+            throw new Error(`Erro ao registrar derrota: ${response.status} - ${response.statusText}`);
         }
-        
-        // Atualizar dados exibidos após registrar derrota
-        fetchData();
-        
-        return true;
+
+        const result = await response.json(); // Backend deve retornar os dados atualizados
+        console.log('Derrota registrada com sucesso, received data:', result);
+
+        // Atualizar UI com os dados retornados pelo backend
+        atualizarUI(result);
+
     } catch (error) {
-        showError(`Erro ao registrar derrota: ${error.message}`);
-        return false;
+        console.error('Erro detalhado ao registrar derrota:', error);
+        alert('Erro ao comunicar com o servidor (LOSS). Verifique o console para detalhes.');
     } finally {
-        isRequestInProgress = false;
-        lossBtn.disabled = false;
+        if (btnLoss) btnLoss.disabled = false;
     }
 }
 
 // Função para zerar dados
-async function resetData() {
-    if (isRequestInProgress) {
-        showError('Operação em andamento, aguarde...');
-        return false;
-    }
-    
-    // Confirmar antes de zerar
-    if (!confirm('Tem certeza que deseja zerar todos os dados?')) {
-        return false;
-    }
-    
-    isRequestInProgress = true;
-    resetBtn.disabled = true;
-    
+async function zerar() {
+    console.log('Attempting to reset data');
+    const btnZerar = document.getElementById('btn-zerar');
     try {
+        btnZerar.disabled = true;
+
+        console.log('Sending fetch request to /reset');
         const response = await fetch(`${API_URL}/reset`, {
             method: 'POST'
         });
-        
+        console.log('Received response from /reset:', response);
+
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Erro ao zerar dados');
+            const errorText = await response.text();
+            console.error(`Error response body from /reset: ${errorText}`);
+            throw new Error(`Erro ao zerar dados: ${response.status} - ${response.statusText}`);
         }
-        
+
+        const result = await response.json(); // Backend deve retornar os dados zerados/iniciais
+        console.log('Dados zerados com sucesso, received data:', result);
+
         // Limpar campos de entrada
-        initialCapitalInput.value = '';
-        totalOperationsInput.value = '';
-        winOperationsInput.value = '';
-        payoutInput.value = '';
-        
-        // Atualizar dados exibidos após zerar
-        fetchData();
-        
-        return true;
+        if (capitalInicialInput) capitalInicialInput.value = '';
+        if (totalOperacoesInput) totalOperacoesInput.value = '';
+        if (operacoesGanhoInput) operacoesGanhoInput.value = '';
+        if (payoutFixoInput) payoutFixoInput.value = '';
+
+        // Atualizar UI com os dados retornados pelo backend
+        atualizarUI(result);
+
     } catch (error) {
-        showError(`Erro ao zerar dados: ${error.message}`);
-        return false;
+        console.error('Erro detalhado ao zerar dados:', error);
+        alert('Erro ao comunicar com o servidor (ZERAR). Verifique o console para detalhes.');
     } finally {
-        isRequestInProgress = false;
-        resetBtn.disabled = false;
+        if (btnZerar) btnZerar.disabled = false;
     }
 }
 
-// Função para verificar status do servidor
-async function checkServerStatus() {
-    try {
-        const response = await fetch(`${API_URL}/status`);
-        
-        if (!response.ok) {
-            console.error('Servidor offline ou com problemas');
-            return false;
-        }
-        
-        return true;
-    } catch (error) {
-        console.error('Erro ao verificar status do servidor:', error);
-        return false;
-    }
-}
-
-// Função para buscar dados da planilha
-async function fetchData() {
+// Função para carregar dados da planilha (usada apenas na carga inicial)
+async function carregarDados() {
+    console.log('Attempting to load initial data from /dados');
     try {
         const response = await fetch(`${API_URL}/dados`);
-        
+        console.log('Received response from /dados:', response);
+
         if (!response.ok) {
-            throw new Error('Erro ao buscar dados');
+            const errorText = await response.text();
+            console.error(`Error response body from /dados: ${errorText}`);
+            throw new Error(`Erro ao carregar dados iniciais: ${response.status} - ${response.statusText}`);
         }
-        
+
         const data = await response.json();
-        
-        // Atualizar campos de entrada somente leitura
-        entryValueInput.value = data.entradas && data.entradas.length > 0 ? data.entradas[0] : '';
-        profitPerOperationInput.value = data.lucros && data.lucros.length > 0 ? data.lucros[0] : '';
-        
-        // Atualizar métricas
-        currentCapitalDisplay.textContent = formatCurrency(data.capital_atual);
-        totalProfitDisplay.textContent = formatCurrency(data.lucro_acumulado);
-        winsDisplay.textContent = data.acertos || '0';
-        lossesDisplay.textContent = data.erros || '0';
-        
-        // Atualizar histórico de operações
-        updateOperationsHistory(data.historico);
-        
-        return data;
+        console.log('Dados iniciais carregados com sucesso:', data);
+
+        // Atualizar UI com os dados iniciais
+        atualizarUI(data);
+
+        // Preencher inputs iniciais se vierem do backend (opcional)
+        // if (capitalInicialInput && data.capital_inicial) capitalInicialInput.value = data.capital_inicial;
+        // ... outros inputs ...
+
     } catch (error) {
-        console.error('Erro ao buscar dados:', error);
-        return null;
+        console.error('Erro detalhado ao carregar dados iniciais:', error);
+        // Não mostrar alerta aqui para não interromper o carregamento inicial
     }
 }
 
-// Função para atualizar histórico de operações
-function updateOperationsHistory(historico) {
-    operationsHistoryTable.innerHTML = '';
-    
-    if (!historico || historico.length === 0) {
+// Função para atualizar tabela de histórico
+function atualizarHistorico(historico) {
+    if (!historicoTableBody) {
+        console.error('Historico table body not found');
         return;
     }
-    
-    historico.forEach((op, index) => {
-        if (op.numero) {
+
+    // Limpar tabela
+    historicoTableBody.innerHTML = '';
+
+    // Adicionar linhas do histórico
+    if (historico && historico.length > 0) {
+        console.log(`Updating history table with ${historico.length} items`);
+        historico.forEach(item => {
             const row = document.createElement('tr');
-            row.className = index % 2 === 0 ? 'bg-gray-50' : 'bg-white';
-            
-            row.innerHTML = `
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${op.numero}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(op.valor)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm ${op.resultado === 'W' ? 'text-green-600' : op.resultado === 'L' ? 'text-red-600' : 'text-gray-500'}">${op.resultado || '-'}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm ${parseFloat(op.lucro) >= 0 ? 'text-green-600' : 'text-red-600'}">${formatCurrency(op.lucro)}</td>
-            `;
-            
-            operationsHistoryTable.appendChild(row);
-        }
-    });
+
+            // Número da operação
+            const numCell = document.createElement('td');
+            numCell.textContent = item.numero;
+            row.appendChild(numCell);
+
+            // Valor da entrada
+            const valorCell = document.createElement('td');
+            valorCell.textContent = formatarValor(item.valor);
+            row.appendChild(valorCell);
+
+            // Resultado (W/L)
+            const resultadoCell = document.createElement('td');
+            resultadoCell.textContent = item.resultado;
+            resultadoCell.className = item.resultado === 'W' ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'; // Tailwind classes
+            row.appendChild(resultadoCell);
+
+            // Lucro
+            const lucroCell = document.createElement('td');
+            lucroCell.textContent = formatarValor(item.lucro);
+            lucroCell.className = parseFloat(item.lucro) >= 0 ? 'text-green-600' : 'text-red-600'; // Color based on profit/loss
+            row.appendChild(lucroCell);
+
+            historicoTableBody.appendChild(row);
+        });
+    } else {
+        console.log('No history items to display');
+        // Opcional: Adicionar uma linha indicando que não há histórico
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = 4;
+        cell.textContent = 'Nenhuma operação registrada.';
+        cell.className = 'text-center text-gray-500 py-4';
+        row.appendChild(cell);
+        historicoTableBody.appendChild(row);
+    }
 }
 
-// Função para adicionar mensagem ao chat
-function addMessageToChat(username, message) {
-    const messageElement = document.createElement('div');
-    messageElement.className = 'chat-message bg-blue-50 p-3 rounded-lg';
-    messageElement.innerHTML = `
-        <p class="font-bold text-blue-800">${username}</p>
-        <p class="text-gray-700">${message}</p>
-    `;
-    
-    chatMessages.appendChild(messageElement);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
+// Função para formatar valores monetários
+function formatarValor(valor) {
+    if (valor === null || valor === undefined || valor === '') return 'R$ 0,00';
+
+    // Converter para número se for string, tratando vírgula como separador decimal
+    const num = typeof valor === 'string' ? parseFloat(valor.replace(/[^\d,-]/g, '').replace(',', '.')) : parseFloat(valor);
+
+    // Verificar se é um número válido
+    if (isNaN(num)) {
+        console.warn(`Invalid value received for formatting: ${valor}`);
+        return 'R$ --,--'; // Indicar valor inválido
+    }
+
+    // Formatar como moeda brasileira
+    return `R$ ${num.toFixed(2).replace('.', ',')}`;
 }
 
-// Event Listeners
-initialCapitalInput.addEventListener('input', () => {
-    if (initialCapitalInput.value) {
-        updateSpreadsheet('capital_inicial', initialCapitalInput.value);
-    }
-});
+// Verificar status do backend ao iniciar
+async function verificarStatus() {
+    console.log('Attempting to verify backend status');
+    try {
+        const response = await fetch(`${API_URL}/status`);
+        console.log('Received response from /status:', response);
+        const data = await response.json();
 
-totalOperationsInput.addEventListener('input', () => {
-    if (totalOperationsInput.value) {
-        updateSpreadsheet('total_operacoes', totalOperationsInput.value);
-    }
-});
-
-winOperationsInput.addEventListener('input', () => {
-    if (winOperationsInput.value) {
-        updateSpreadsheet('operacoes_ganho', winOperationsInput.value);
-    }
-});
-
-payoutInput.addEventListener('input', () => {
-    if (payoutInput.value) {
-        updateSpreadsheet('payout_fixo', payoutInput.value);
-    }
-});
-
-winBtn.addEventListener('click', registerWin);
-lossBtn.addEventListener('click', registerLoss);
-resetBtn.addEventListener('click', resetData);
-
-sendBtn.addEventListener('click', () => {
-    const username = usernameInput.value.trim();
-    const message = messageInput.value.trim();
-    
-    if (username && message) {
-        addMessageToChat(username, message);
-        messageInput.value = '';
-    }
-});
-
-messageInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        const username = usernameInput.value.trim();
-        const message = messageInput.value.trim();
-        
-        if (username && message) {
-            addMessageToChat(username, message);
-            messageInput.value = '';
+        if (data.status === 'online') {
+            console.log('Backend conectado com sucesso!');
+        } else {
+            console.error('Backend offline:', data.message);
+            alert('Erro ao conectar com o servidor. Verifique se o backend está em execução e os logs do console.');
         }
+    } catch (error) {
+        console.error('Erro detalhado ao verificar status do backend:', error);
+        alert('Erro crítico ao conectar com o servidor. Verifique o console para detalhes.');
     }
+}
+
+// Verificar status ao carregar a página
+window.addEventListener('load', () => {
+    console.log('Window load event fired');
+    verificarStatus();
 });
 
-// Inicialização
-document.addEventListener('DOMContentLoaded', async () => {
-    // Verificar status do servidor
-    const serverOnline = await checkServerStatus();
-    
-    if (!serverOnline) {
-        showError('Não foi possível conectar ao servidor. Verifique se o backend está em execução.');
-    }
-    
-    // Buscar dados iniciais
-    await fetchData();
-    
-    // Configurar atualização periódica dos dados (a cada 5 segundos)
-    setInterval(fetchData, 5000);
-    
-    // Adicionar mensagens iniciais ao chat
-    addMessageToChat('Admin', 'Bem-vindo ao chat! Envie suas dúvidas aqui.');
-    addMessageToChat('Suporte', 'Estamos online para ajudar.');
-});

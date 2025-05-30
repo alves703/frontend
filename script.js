@@ -16,6 +16,8 @@ let historicoTableBody;
 
 // Inicialização
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM fully loaded and parsed');
+
     // Inicializar elementos do DOM
     capitalInicialInput = document.getElementById('capital-inicial');
     totalOperacoesInput = document.getElementById('total-operacoes');
@@ -29,30 +31,89 @@ document.addEventListener('DOMContentLoaded', () => {
     errosSpan = document.getElementById('erros');
     historicoTableBody = document.getElementById('historico-body');
 
+    console.log('DOM elements initialized:', {
+        capitalInicialInput,
+        totalOperacoesInput,
+        operacoesGanhoInput,
+        payoutFixoInput
+    });
+
     // Adicionar event listeners
-    capitalInicialInput.addEventListener('input', () => updateCell('capital_inicial', capitalInicialInput.value));
-    totalOperacoesInput.addEventListener('input', () => updateCell('total_operacoes', totalOperacoesInput.value));
-    operacoesGanhoInput.addEventListener('input', () => updateCell('operacoes_com_ganho', operacoesGanhoInput.value));
-    payoutFixoInput.addEventListener('input', () => updateCell('payout', payoutFixoInput.value));
+    if (capitalInicialInput) {
+        capitalInicialInput.addEventListener('input', () => {
+            console.log('Input event fired for capital_inicial');
+            updateCell('capital_inicial', capitalInicialInput.value);
+        });
+    } else {
+        console.error('Element with ID capital-inicial not found');
+    }
+
+    if (totalOperacoesInput) {
+        totalOperacoesInput.addEventListener('input', () => {
+            console.log('Input event fired for total_operacoes');
+            updateCell('total_operacoes', totalOperacoesInput.value);
+        });
+    } else {
+        console.error('Element with ID total-operacoes not found');
+    }
+
+    if (operacoesGanhoInput) {
+        operacoesGanhoInput.addEventListener('input', () => {
+            console.log('Input event fired for operacoes_com_ganho');
+            updateCell('operacoes_com_ganho', operacoesGanhoInput.value);
+        });
+    } else {
+        console.error('Element with ID operacoes-ganho not found');
+    }
+
+    if (payoutFixoInput) {
+        payoutFixoInput.addEventListener('input', () => {
+            console.log('Input event fired for payout');
+            updateCell('payout', payoutFixoInput.value);
+        });
+    } else {
+        console.error('Element with ID payout-fixo not found');
+    }
 
     // Botões
-    document.getElementById('btn-win').addEventListener('click', registrarWin);
-    document.getElementById('btn-loss').addEventListener('click', registrarLoss);
-    document.getElementById('btn-zerar').addEventListener('click', zerar);
+    const btnWin = document.getElementById('btn-win');
+    if (btnWin) {
+        btnWin.addEventListener('click', registrarWin);
+    } else {
+        console.error('Element with ID btn-win not found');
+    }
+
+    const btnLoss = document.getElementById('btn-loss');
+    if (btnLoss) {
+        btnLoss.addEventListener('click', registrarLoss);
+    } else {
+        console.error('Element with ID btn-loss not found');
+    }
+
+    const btnZerar = document.getElementById('btn-zerar');
+    if (btnZerar) {
+        btnZerar.addEventListener('click', zerar);
+    } else {
+        console.error('Element with ID btn-zerar not found');
+    }
 
     // Carregar dados iniciais
+    console.log('Calling carregarDados initially');
     carregarDados();
 
     // Atualizar dados a cada 5 segundos
+    console.log('Setting interval for carregarDados');
     setInterval(carregarDados, 5000);
 });
 
 // Função para atualizar célula na planilha
 async function updateCell(field, value) {
+    console.log(`Attempting to update cell: field=${field}, value=${value}`);
     try {
         const data = {};
         data[field] = value;
         
+        console.log('Sending fetch request to /update with data:', data);
         const response = await fetch(`${API_URL}/update`, {
             method: 'POST',
             headers: {
@@ -60,117 +121,142 @@ async function updateCell(field, value) {
             },
             body: JSON.stringify(data)
         });
+        console.log('Received response from /update:', response);
 
         if (!response.ok) {
-            throw new Error(`Erro ao atualizar célula: ${response.status}`);
+            const errorText = await response.text();
+            console.error(`Error response body from /update: ${errorText}`);
+            throw new Error(`Erro ao atualizar célula: ${response.status} - ${response.statusText}`);
         }
 
         const result = await response.json();
-        console.log('Célula atualizada:', result);
+        console.log('Célula atualizada com sucesso:', result);
     } catch (error) {
-        console.error('Erro ao atualizar célula:', error);
-        alert('Erro ao comunicar com o servidor. Tente novamente.');
+        console.error('Erro detalhado ao atualizar célula:', error);
+        alert(`Erro ao comunicar com o servidor (${field}). Verifique o console para detalhes.`);
     }
 }
 
 // Função para registrar vitória (WIN)
 async function registrarWin() {
+    console.log('Attempting to register WIN');
+    const btnWin = document.getElementById('btn-win');
     try {
-        const btnWin = document.getElementById('btn-win');
         btnWin.disabled = true;
         
+        console.log('Sending fetch request to /win');
         const response = await fetch(`${API_URL}/win`, {
             method: 'POST'
         });
+        console.log('Received response from /win:', response);
 
         if (!response.ok) {
-            throw new Error(`Erro ao registrar vitória: ${response.status}`);
+            const errorText = await response.text();
+            console.error(`Error response body from /win: ${errorText}`);
+            throw new Error(`Erro ao registrar vitória: ${response.status} - ${response.statusText}`);
         }
 
         const result = await response.json();
-        console.log('Vitória registrada:', result);
+        console.log('Vitória registrada com sucesso:', result);
         
         // Atualizar dados após registrar vitória
+        console.log('Calling carregarDados after WIN');
         await carregarDados();
     } catch (error) {
-        console.error('Erro ao registrar vitória:', error);
-        alert('Erro ao comunicar com o servidor. Tente novamente.');
+        console.error('Erro detalhado ao registrar vitória:', error);
+        alert('Erro ao comunicar com o servidor (WIN). Verifique o console para detalhes.');
     } finally {
-        document.getElementById('btn-win').disabled = false;
+        if (btnWin) btnWin.disabled = false;
     }
 }
 
 // Função para registrar derrota (LOSS)
 async function registrarLoss() {
+    console.log('Attempting to register LOSS');
+    const btnLoss = document.getElementById('btn-loss');
     try {
-        const btnLoss = document.getElementById('btn-loss');
         btnLoss.disabled = true;
         
+        console.log('Sending fetch request to /loss');
         const response = await fetch(`${API_URL}/loss`, {
             method: 'POST'
         });
+        console.log('Received response from /loss:', response);
 
         if (!response.ok) {
-            throw new Error(`Erro ao registrar derrota: ${response.status}`);
+            const errorText = await response.text();
+            console.error(`Error response body from /loss: ${errorText}`);
+            throw new Error(`Erro ao registrar derrota: ${response.status} - ${response.statusText}`);
         }
 
         const result = await response.json();
-        console.log('Derrota registrada:', result);
+        console.log('Derrota registrada com sucesso:', result);
         
         // Atualizar dados após registrar derrota
+        console.log('Calling carregarDados after LOSS');
         await carregarDados();
     } catch (error) {
-        console.error('Erro ao registrar derrota:', error);
-        alert('Erro ao comunicar com o servidor. Tente novamente.');
+        console.error('Erro detalhado ao registrar derrota:', error);
+        alert('Erro ao comunicar com o servidor (LOSS). Verifique o console para detalhes.');
     } finally {
-        document.getElementById('btn-loss').disabled = false;
+        if (btnLoss) btnLoss.disabled = false;
     }
 }
 
 // Função para zerar dados
 async function zerar() {
+    console.log('Attempting to reset data');
+    const btnZerar = document.getElementById('btn-zerar');
     try {
-        const btnZerar = document.getElementById('btn-zerar');
         btnZerar.disabled = true;
         
+        console.log('Sending fetch request to /reset');
         const response = await fetch(`${API_URL}/reset`, {
             method: 'POST'
         });
+        console.log('Received response from /reset:', response);
 
         if (!response.ok) {
-            throw new Error(`Erro ao zerar dados: ${response.status}`);
+            const errorText = await response.text();
+            console.error(`Error response body from /reset: ${errorText}`);
+            throw new Error(`Erro ao zerar dados: ${response.status} - ${response.statusText}`);
         }
 
         const result = await response.json();
-        console.log('Dados zerados:', result);
+        console.log('Dados zerados com sucesso:', result);
         
         // Limpar campos de entrada
-        capitalInicialInput.value = '';
-        totalOperacoesInput.value = '';
-        operacoesGanhoInput.value = '';
-        payoutFixoInput.value = '';
+        if (capitalInicialInput) capitalInicialInput.value = '';
+        if (totalOperacoesInput) totalOperacoesInput.value = '';
+        if (operacoesGanhoInput) operacoesGanhoInput.value = '';
+        if (payoutFixoInput) payoutFixoInput.value = '';
         
         // Atualizar dados após zerar
+        console.log('Calling carregarDados after ZERAR');
         await carregarDados();
     } catch (error) {
-        console.error('Erro ao zerar dados:', error);
-        alert('Erro ao comunicar com o servidor. Tente novamente.');
+        console.error('Erro detalhado ao zerar dados:', error);
+        alert('Erro ao comunicar com o servidor (ZERAR). Verifique o console para detalhes.');
     } finally {
-        document.getElementById('btn-zerar').disabled = false;
+        if (btnZerar) btnZerar.disabled = false;
     }
 }
 
 // Função para carregar dados da planilha
 async function carregarDados() {
+    // console.log('Attempting to load data from /dados'); // Removido para evitar spam no console
     try {
         const response = await fetch(`${API_URL}/dados`);
+        // console.log('Received response from /dados:', response); // Removido para evitar spam no console
         
         if (!response.ok) {
-            throw new Error(`Erro ao carregar dados: ${response.status}`);
+            const errorText = await response.text();
+            console.error(`Error response body from /dados: ${errorText}`);
+            throw new Error(`Erro ao carregar dados: ${response.status} - ${response.statusText}`);
         }
 
         const data = await response.json();
-        console.log('Dados carregados:', data);
+        // console.log('Dados carregados com sucesso:', data); // Removido para evitar spam no console
         
         // Atualizar métricas
         if (capitalAtualSpan) capitalAtualSpan.textContent = formatarValor(data.capital_atual);
@@ -180,8 +266,13 @@ async function carregarDados() {
         
         // Atualizar histórico
         atualizarHistorico(data.historico);
+
+        // Atualizar campos de entrada que são lidos da planilha (se necessário)
+        // Exemplo: if (valorEntradaInput && data.valor_entrada) valorEntradaInput.value = data.valor_entrada;
+        // Exemplo: if (lucroPorOperacaoInput && data.lucro_operacao) lucroPorOperacaoInput.value = data.lucro_operacao;
+
     } catch (error) {
-        console.error('Erro ao carregar dados:', error);
+        console.error('Erro detalhado ao carregar dados:', error);
         // Não mostrar alerta aqui para evitar spam de alertas durante atualizações periódicas
     }
 }
@@ -226,13 +317,13 @@ function atualizarHistorico(historico) {
 
 // Função para formatar valores monetários
 function formatarValor(valor) {
-    if (valor === null || valor === undefined) return 'R$ 0,00';
+    if (valor === null || valor === undefined || valor === '') return 'R$ 0,00';
     
-    // Converter para número se for string
+    // Converter para número se for string, tratando vírgula como separador decimal
     const num = typeof valor === 'string' ? parseFloat(valor.replace(/[^\d,-]/g, '').replace(',', '.')) : valor;
     
     // Verificar se é um número válido
-    if (isNaN(num)) return 'R$ 0,00';
+    if (isNaN(num)) return 'R$ 0,00'; // Ou talvez retornar o valor original se não for número?
     
     // Formatar como moeda brasileira
     return `R$ ${num.toFixed(2).replace('.', ',')}`;
@@ -240,21 +331,27 @@ function formatarValor(valor) {
 
 // Verificar status do backend ao iniciar
 async function verificarStatus() {
+    console.log('Attempting to verify backend status');
     try {
         const response = await fetch(`${API_URL}/status`);
+        console.log('Received response from /status:', response);
         const data = await response.json();
         
         if (data.status === 'online') {
             console.log('Backend conectado com sucesso!');
         } else {
             console.error('Backend offline:', data.message);
-            alert('Erro ao conectar com o servidor. Verifique se o backend está em execução.');
+            alert('Erro ao conectar com o servidor. Verifique se o backend está em execução e os logs do console.');
         }
     } catch (error) {
-        console.error('Erro ao verificar status do backend:', error);
-        alert('Erro ao conectar com o servidor. Verifique se o backend está em execução.');
+        console.error('Erro detalhado ao verificar status do backend:', error);
+        alert('Erro crítico ao conectar com o servidor. Verifique o console para detalhes.');
     }
 }
 
 // Verificar status ao carregar a página
-window.addEventListener('load', verificarStatus);
+window.addEventListener('load', () => {
+    console.log('Window load event fired');
+    verificarStatus();
+});
+

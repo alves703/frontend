@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão de Banca e Sinais em Tempo Real</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+        }
+        .risk-high {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        .signal-card {
+            transition: all 0.3s ease;
+        }
+        .signal-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+        .chat-message {
+            max-width: 80%;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="min-h-screen flex flex-col">
+        <!-- Header -->
+        <header class="gradient-bg text-white shadow-lg">
+            <div class="container mx-auto px-4 py-6">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center space-x-2">
+                        <i class="fas fa-chart-line text-2xl"></i>
+                        <h1 class="text-2xl font-bold">Gestão de Banca Pro</h1>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button id="notification-btn" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-full flex items-center space-x-2">
+                            <i class="fas fa-bell"></i>
+                            <span>Ativar Notificações</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-grow container mx-auto px-4 py-8">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Bank Management Calculator -->
+                <div class="lg:col-span-2 space-y-8">
+                    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                        <div class="gradient-bg px-6 py-4">
+                            <h2 class="text-xl font-bold text-white">Calculadora de Gestão de Banca</h2>
+                        </div>
+                        <div class="p-6">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                <div>
+                                    <label class="block text-gray-700 font-medium mb-2">Capital Inicial (R$)</label>
+                                    <input type="number" id="initial-capital" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="1000">
+                                </div>
+                                <div>
+                                    <label class="block text-gray-700 font-medium mb-2">Nº Total de Operações</label>
+                                    <input type="number" id="total-operations" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="10">
+                                </div>
+                                <div>
+                                    <label class="block text-gray-700 font-medium mb-2">Nº de Operações com Ganho</label>
+                                    <input type="number" id="win-operations" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="6">
+                                </div>
+                                <div>
+                                    <label class="block text-gray-700 font-medium mb-2">Payout Fixo</label>
+                                    <input type="number" step="0.01" id="payout" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="1.80">
+                                </div>
+                            </div>
+
+                            <div id="risk-warning" class="hidden bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6">
+                                <div class="flex items-center">
+                                    <i class="fas fa-exclamation-triangle mr-2"></i>
+                                    <p class="font-medium">Risco elevado, prossiga com cautela.</p>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                <div>
+                                    <label class="block text-gray-700 font-medium mb-2">Valor da Entrada (R$)</label>
+                                    <input type="number" id="entry-value" class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100" readonly>
+                                </div>
+                                <div>
+                                    <label class="block text-gray-700 font-medium mb-2">Lucro por Operação (R$)</label>
+                                    <input type="number" id="profit-per-operation" class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100" readonly>
+                                </div>
+                            </div>
+
+                            <div class="flex justify-center space-x-4 mb-6">
+                                <button id="win-btn" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-bold flex items-center space-x-2">
+                                    <i class="fas fa-check"></i>
+                                    <span>WIN</span>
+                                </button>
+                                <button id="loss-btn" class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-bold flex items-center space-x-2">
+                                    <i class="fas fa-times"></i>
+                                    <span>LOSS</span>
+                                </button>
+                                <button id="reset-btn" class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-bold flex items-center space-x-2">
+                                    <i class="fas fa-redo"></i>
+                                    <span>ZERAR</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Metrics Panel -->
+                    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                        <div class="gradient-bg px-6 py-4">
+                            <h2 class="text-xl font-bold text-white">Métricas de Desempenho</h2>
+                        </div>
+                        <div class="p-6">
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div class="bg-blue-50 p-4 rounded-lg text-center">
+                                    <p class="text-gray-600 font-medium">Capital Atual</p>
+                                    <p id="current-capital" class="text-2xl font-bold text-blue-700">R$ 0,00</p>
+                                </div>
+                                <div class="bg-green-50 p-4 rounded-lg text-center">
+                                    <p class="text-gray-600 font-medium">Acertos</p>
+                                    <p id="wins" class="text-2xl font-bold text-green-700">0</p>
+                                </div>
+                                <div class="bg-red-50 p-4 rounded-lg text-center">
+                                    <p class="text-gray-600 font-medium">Erros</p>
+                                    <p id="losses" class="text-2xl font-bold text-red-700">0</p>
+                                </div>
+                                <div class="bg-purple-50 p-4 rounded-lg text-center">
+                                    <p class="text-gray-600 font-medium">Lucro Acumulado</p>
+                                    <p id="total-profit" class="text-2xl font-bold text-purple-700">R$ 0,00</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Operations History -->
+                    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                        <div class="gradient-bg px-6 py-4">
+                            <h2 class="text-xl font-bold text-white">Histórico de Operações</h2>
+                        </div>
+                        <div class="p-6">
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Resultado</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lucro</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="operations-history" class="bg-white divide-y divide-gray-200">
+                                        <!-- Operations will be added here dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Sidebar -->
+                <div class="space-y-8">
+                    <!-- Live Signals -->
+                    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                        <div class="gradient-bg px-6 py-4">
+                            <h2 class="text-xl font-bold text-white">Sinais ao Vivo</h2>
+                        </div>
+                        <div class="p-6">
+                            <div id="signals-container" class="space-y-4 max-h-96 overflow-y-auto scrollbar-hide">
+                                <div class="signal-card bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <p class="font-bold text-yellow-800">Oportunidade! 🚨</p>
+                                            <p class="text-gray-700">⚽ Jogo: São José x São Luiz</p>
+                                            <p class="text-gray-700">⏰ Minuto: 60'</p>
+                                            <p class="text-gray-700">🥅 Placar: 3 x 0</p>
+                                            <p class="text-gray-700">Odds: Casa 1.90 - Empate 3.10 - Fora 3.70</p>
+                                            <p class="text-gray-700">Stake: 1%</p>
+                                        </div>
+                                        <a href="https://www.bet365.bet.br/" target="_blank" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm">Bet365</a>
+                                    </div>
+                                </div>
+                                <!-- More signals will be added here dynamically -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Real-time Chat -->
+                    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                        <div class="gradient-bg px-6 py-4">
+                            <h2 class="text-xl font-bold text-white">Chat em Tempo Real</h2>
+                        </div>
+                        <div class="p-6">
+                            <div id="chat-messages" class="mb-4 space-y-3 max-h-64 overflow-y-auto scrollbar-hide">
+                                <!-- Messages will be added here dynamically -->
+                            </div>
+                            <div class="flex space-x-2">
+                                <input type="text" id="username" class="w-1/3 px-3 py-2 border border-gray-300 rounded-lg" placeholder="Seu nome">
+                                <input type="text" id="message-input" class="flex-grow px-3 py-2 border border-gray-300 rounded-lg" placeholder="Digite sua mensagem...">
+                                <button id="send-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="gradient-bg text-white py-6">
+            <div class="container mx-auto px-4 text-center">
+                <p>© 2023 Gestão de Banca Pro. Todos os direitos reservados.</p>
+            </div>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,58 +1,54 @@
 // Configuração da API
-const API_URL = 'https://web-production-3f3de.up.railway.app/update'; // Alterar para URL de produção quando estiver em produção
+const API_URL = 'https://web-production-3f3de.up.railway.app';
 
 // Elementos do DOM
-const initialCapitalInput = document.getElementById('initial-capital');
-const totalOperationsInput = document.getElementById('total-operations');
-const winOperationsInput = document.getElementById('win-operations');
-const payoutInput = document.getElementById('payout');
-const entryValueInput = document.getElementById('entry-value');
-const profitPerOperationInput = document.getElementById('profit-per-operation');
-const currentCapitalDisplay = document.getElementById('current-capital');
-const winsDisplay = document.getElementById('wins');
-const lossesDisplay = document.getElementById('losses');
-const totalProfitDisplay = document.getElementById('total-profit');
-const operationsHistoryTable = document.getElementById('operations-history');
-const winBtn = document.getElementById('win-btn');
-const lossBtn = document.getElementById('loss-btn');
-const resetBtn = document.getElementById('reset-btn');
-const riskWarning = document.getElementById('risk-warning');
+let capitalInicialInput;
+let totalOperacoesInput;
+let operacoesGanhoInput;
+let payoutFixoInput;
+let valorEntradaInput;
+let lucroPorOperacaoInput;
+let capitalAtualSpan;
+let lucroAcumuladoSpan;
+let acertosSpan;
+let errosSpan;
+let historicoTableBody;
 
-// Elementos do Chat
-const chatMessages = document.getElementById('chat-messages');
-const messageInput = document.getElementById('message-input');
-const usernameInput = document.getElementById('username');
-const sendBtn = document.getElementById('send-btn');
+// Inicialização
+document.addEventListener('DOMContentLoaded', () => {
+    // Inicializar elementos do DOM
+    capitalInicialInput = document.getElementById('capital-inicial');
+    totalOperacoesInput = document.getElementById('total-operacoes');
+    operacoesGanhoInput = document.getElementById('operacoes-ganho');
+    payoutFixoInput = document.getElementById('payout-fixo');
+    valorEntradaInput = document.getElementById('valor-entrada');
+    lucroPorOperacaoInput = document.getElementById('lucro-operacao');
+    capitalAtualSpan = document.getElementById('capital-atual');
+    lucroAcumuladoSpan = document.getElementById('lucro-acumulado');
+    acertosSpan = document.getElementById('acertos');
+    errosSpan = document.getElementById('erros');
+    historicoTableBody = document.getElementById('historico-body');
 
-// Elementos dos Sinais
-const signalsContainer = document.getElementById('signals-container');
+    // Adicionar event listeners
+    capitalInicialInput.addEventListener('input', () => updateCell('capital_inicial', capitalInicialInput.value));
+    totalOperacoesInput.addEventListener('input', () => updateCell('total_operacoes', totalOperacoesInput.value));
+    operacoesGanhoInput.addEventListener('input', () => updateCell('operacoes_com_ganho', operacoesGanhoInput.value));
+    payoutFixoInput.addEventListener('input', () => updateCell('payout', payoutFixoInput.value));
 
-// Variável para controlar requisições em andamento
-let isRequestInProgress = false;
+    // Botões
+    document.getElementById('btn-win').addEventListener('click', registrarWin);
+    document.getElementById('btn-loss').addEventListener('click', registrarLoss);
+    document.getElementById('btn-zerar').addEventListener('click', zerar);
 
-// Função para mostrar mensagem de erro
-function showError(message) {
-    alert(`Erro: ${message}`);
-    console.error(message);
-}
+    // Carregar dados iniciais
+    carregarDados();
 
-// Função para formatar valores monetários
-function formatCurrency(value) {
-    if (value === null || value === undefined || isNaN(value)) {
-        return 'R$ 0,00';
-    }
-    return `R$ ${parseFloat(value).toFixed(2)}`;
-}
+    // Atualizar dados a cada 5 segundos
+    setInterval(carregarDados, 5000);
+});
 
-// Função para atualizar os dados na planilha
-async function updateSpreadsheet(field, value) {
-    if (isRequestInProgress) {
-        console.log('Requisição em andamento, aguarde...');
-        return false;
-    }
-    
-    isRequestInProgress = true;
-    
+// Função para atualizar célula na planilha
+async function updateCell(field, value) {
     try {
         const data = {};
         data[field] = value;
@@ -64,287 +60,201 @@ async function updateSpreadsheet(field, value) {
             },
             body: JSON.stringify(data)
         });
-        
+
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Erro ao atualizar planilha');
+            throw new Error(`Erro ao atualizar célula: ${response.status}`);
         }
-        
-        // Atualizar dados exibidos após cada alteração
-        fetchData();
-        
-        return true;
+
+        const result = await response.json();
+        console.log('Célula atualizada:', result);
     } catch (error) {
-        showError(`Erro ao atualizar dados: ${error.message}`);
-        return false;
-    } finally {
-        isRequestInProgress = false;
+        console.error('Erro ao atualizar célula:', error);
+        alert('Erro ao comunicar com o servidor. Tente novamente.');
     }
 }
 
 // Função para registrar vitória (WIN)
-async function registerWin() {
-    if (isRequestInProgress) {
-        showError('Operação em andamento, aguarde...');
-        return false;
-    }
-    
-    isRequestInProgress = true;
-    winBtn.disabled = true;
-    
+async function registrarWin() {
     try {
+        const btnWin = document.getElementById('btn-win');
+        btnWin.disabled = true;
+        
         const response = await fetch(`${API_URL}/win`, {
             method: 'POST'
         });
-        
+
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Erro ao registrar vitória');
+            throw new Error(`Erro ao registrar vitória: ${response.status}`);
         }
+
+        const result = await response.json();
+        console.log('Vitória registrada:', result);
         
-        // Atualizar dados exibidos após registrar vitória
-        fetchData();
-        
-        return true;
+        // Atualizar dados após registrar vitória
+        await carregarDados();
     } catch (error) {
-        showError(`Erro ao registrar vitória: ${error.message}`);
-        return false;
+        console.error('Erro ao registrar vitória:', error);
+        alert('Erro ao comunicar com o servidor. Tente novamente.');
     } finally {
-        isRequestInProgress = false;
-        winBtn.disabled = false;
+        document.getElementById('btn-win').disabled = false;
     }
 }
 
 // Função para registrar derrota (LOSS)
-async function registerLoss() {
-    if (isRequestInProgress) {
-        showError('Operação em andamento, aguarde...');
-        return false;
-    }
-    
-    isRequestInProgress = true;
-    lossBtn.disabled = true;
-    
+async function registrarLoss() {
     try {
+        const btnLoss = document.getElementById('btn-loss');
+        btnLoss.disabled = true;
+        
         const response = await fetch(`${API_URL}/loss`, {
             method: 'POST'
         });
-        
+
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Erro ao registrar derrota');
+            throw new Error(`Erro ao registrar derrota: ${response.status}`);
         }
+
+        const result = await response.json();
+        console.log('Derrota registrada:', result);
         
-        // Atualizar dados exibidos após registrar derrota
-        fetchData();
-        
-        return true;
+        // Atualizar dados após registrar derrota
+        await carregarDados();
     } catch (error) {
-        showError(`Erro ao registrar derrota: ${error.message}`);
-        return false;
+        console.error('Erro ao registrar derrota:', error);
+        alert('Erro ao comunicar com o servidor. Tente novamente.');
     } finally {
-        isRequestInProgress = false;
-        lossBtn.disabled = false;
+        document.getElementById('btn-loss').disabled = false;
     }
 }
 
 // Função para zerar dados
-async function resetData() {
-    if (isRequestInProgress) {
-        showError('Operação em andamento, aguarde...');
-        return false;
-    }
-    
-    // Confirmar antes de zerar
-    if (!confirm('Tem certeza que deseja zerar todos os dados?')) {
-        return false;
-    }
-    
-    isRequestInProgress = true;
-    resetBtn.disabled = true;
-    
+async function zerar() {
     try {
+        const btnZerar = document.getElementById('btn-zerar');
+        btnZerar.disabled = true;
+        
         const response = await fetch(`${API_URL}/reset`, {
             method: 'POST'
         });
-        
+
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Erro ao zerar dados');
+            throw new Error(`Erro ao zerar dados: ${response.status}`);
         }
+
+        const result = await response.json();
+        console.log('Dados zerados:', result);
         
         // Limpar campos de entrada
-        initialCapitalInput.value = '';
-        totalOperationsInput.value = '';
-        winOperationsInput.value = '';
-        payoutInput.value = '';
+        capitalInicialInput.value = '';
+        totalOperacoesInput.value = '';
+        operacoesGanhoInput.value = '';
+        payoutFixoInput.value = '';
         
-        // Atualizar dados exibidos após zerar
-        fetchData();
-        
-        return true;
+        // Atualizar dados após zerar
+        await carregarDados();
     } catch (error) {
-        showError(`Erro ao zerar dados: ${error.message}`);
-        return false;
+        console.error('Erro ao zerar dados:', error);
+        alert('Erro ao comunicar com o servidor. Tente novamente.');
     } finally {
-        isRequestInProgress = false;
-        resetBtn.disabled = false;
+        document.getElementById('btn-zerar').disabled = false;
     }
 }
 
-// Função para verificar status do servidor
-async function checkServerStatus() {
-    try {
-        const response = await fetch(`${API_URL}/status`);
-        
-        if (!response.ok) {
-            console.error('Servidor offline ou com problemas');
-            return false;
-        }
-        
-        return true;
-    } catch (error) {
-        console.error('Erro ao verificar status do servidor:', error);
-        return false;
-    }
-}
-
-// Função para buscar dados da planilha
-async function fetchData() {
+// Função para carregar dados da planilha
+async function carregarDados() {
     try {
         const response = await fetch(`${API_URL}/dados`);
         
         if (!response.ok) {
-            throw new Error('Erro ao buscar dados');
+            throw new Error(`Erro ao carregar dados: ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
-        // Atualizar campos de entrada somente leitura
-        entryValueInput.value = data.entradas && data.entradas.length > 0 ? data.entradas[0] : '';
-        profitPerOperationInput.value = data.lucros && data.lucros.length > 0 ? data.lucros[0] : '';
+        console.log('Dados carregados:', data);
         
         // Atualizar métricas
-        currentCapitalDisplay.textContent = formatCurrency(data.capital_atual);
-        totalProfitDisplay.textContent = formatCurrency(data.lucro_acumulado);
-        winsDisplay.textContent = data.acertos || '0';
-        lossesDisplay.textContent = data.erros || '0';
+        if (capitalAtualSpan) capitalAtualSpan.textContent = formatarValor(data.capital_atual);
+        if (lucroAcumuladoSpan) lucroAcumuladoSpan.textContent = formatarValor(data.lucro_acumulado);
+        if (acertosSpan) acertosSpan.textContent = data.acertos || '0';
+        if (errosSpan) errosSpan.textContent = data.erros || '0';
         
-        // Atualizar histórico de operações
-        updateOperationsHistory(data.historico);
-        
-        return data;
+        // Atualizar histórico
+        atualizarHistorico(data.historico);
     } catch (error) {
-        console.error('Erro ao buscar dados:', error);
-        return null;
+        console.error('Erro ao carregar dados:', error);
+        // Não mostrar alerta aqui para evitar spam de alertas durante atualizações periódicas
     }
 }
 
-// Função para atualizar histórico de operações
-function updateOperationsHistory(historico) {
-    operationsHistoryTable.innerHTML = '';
+// Função para atualizar tabela de histórico
+function atualizarHistorico(historico) {
+    if (!historicoTableBody) return;
     
-    if (!historico || historico.length === 0) {
-        return;
-    }
+    // Limpar tabela
+    historicoTableBody.innerHTML = '';
     
-    historico.forEach((op, index) => {
-        if (op.numero) {
+    // Adicionar linhas do histórico
+    if (historico && historico.length > 0) {
+        historico.forEach(item => {
             const row = document.createElement('tr');
-            row.className = index % 2 === 0 ? 'bg-gray-50' : 'bg-white';
             
-            row.innerHTML = `
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${op.numero}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(op.valor)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm ${op.resultado === 'W' ? 'text-green-600' : op.resultado === 'L' ? 'text-red-600' : 'text-gray-500'}">${op.resultado || '-'}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm ${parseFloat(op.lucro) >= 0 ? 'text-green-600' : 'text-red-600'}">${formatCurrency(op.lucro)}</td>
-            `;
+            // Número da operação
+            const numCell = document.createElement('td');
+            numCell.textContent = item.numero;
+            row.appendChild(numCell);
             
-            operationsHistoryTable.appendChild(row);
-        }
-    });
+            // Valor da entrada
+            const valorCell = document.createElement('td');
+            valorCell.textContent = formatarValor(item.valor);
+            row.appendChild(valorCell);
+            
+            // Resultado (W/L)
+            const resultadoCell = document.createElement('td');
+            resultadoCell.textContent = item.resultado;
+            resultadoCell.className = item.resultado === 'W' ? 'text-success' : 'text-danger';
+            row.appendChild(resultadoCell);
+            
+            // Lucro
+            const lucroCell = document.createElement('td');
+            lucroCell.textContent = formatarValor(item.lucro);
+            row.appendChild(lucroCell);
+            
+            historicoTableBody.appendChild(row);
+        });
+    }
 }
 
-// Função para adicionar mensagem ao chat
-function addMessageToChat(username, message) {
-    const messageElement = document.createElement('div');
-    messageElement.className = 'chat-message bg-blue-50 p-3 rounded-lg';
-    messageElement.innerHTML = `
-        <p class="font-bold text-blue-800">${username}</p>
-        <p class="text-gray-700">${message}</p>
-    `;
+// Função para formatar valores monetários
+function formatarValor(valor) {
+    if (valor === null || valor === undefined) return 'R$ 0,00';
     
-    chatMessages.appendChild(messageElement);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
+    // Converter para número se for string
+    const num = typeof valor === 'string' ? parseFloat(valor.replace(/[^\d,-]/g, '').replace(',', '.')) : valor;
+    
+    // Verificar se é um número válido
+    if (isNaN(num)) return 'R$ 0,00';
+    
+    // Formatar como moeda brasileira
+    return `R$ ${num.toFixed(2).replace('.', ',')}`;
 }
 
-// Event Listeners
-initialCapitalInput.addEventListener('input', () => {
-    if (initialCapitalInput.value) {
-        updateSpreadsheet('capital_inicial', initialCapitalInput.value);
-    }
-});
-
-totalOperationsInput.addEventListener('input', () => {
-    if (totalOperationsInput.value) {
-        updateSpreadsheet('total_operacoes', totalOperationsInput.value);
-    }
-});
-
-winOperationsInput.addEventListener('input', () => {
-    if (winOperationsInput.value) {
-        updateSpreadsheet('operacoes_ganho', winOperationsInput.value);
-    }
-});
-
-payoutInput.addEventListener('input', () => {
-    if (payoutInput.value) {
-        updateSpreadsheet('payout_fixo', payoutInput.value);
-    }
-});
-
-winBtn.addEventListener('click', registerWin);
-lossBtn.addEventListener('click', registerLoss);
-resetBtn.addEventListener('click', resetData);
-
-sendBtn.addEventListener('click', () => {
-    const username = usernameInput.value.trim();
-    const message = messageInput.value.trim();
-    
-    if (username && message) {
-        addMessageToChat(username, message);
-        messageInput.value = '';
-    }
-});
-
-messageInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        const username = usernameInput.value.trim();
-        const message = messageInput.value.trim();
+// Verificar status do backend ao iniciar
+async function verificarStatus() {
+    try {
+        const response = await fetch(`${API_URL}/status`);
+        const data = await response.json();
         
-        if (username && message) {
-            addMessageToChat(username, message);
-            messageInput.value = '';
+        if (data.status === 'online') {
+            console.log('Backend conectado com sucesso!');
+        } else {
+            console.error('Backend offline:', data.message);
+            alert('Erro ao conectar com o servidor. Verifique se o backend está em execução.');
         }
+    } catch (error) {
+        console.error('Erro ao verificar status do backend:', error);
+        alert('Erro ao conectar com o servidor. Verifique se o backend está em execução.');
     }
-});
+}
 
-// Inicialização
-document.addEventListener('DOMContentLoaded', async () => {
-    // Verificar status do servidor
-    const serverOnline = await checkServerStatus();
-    
-    if (!serverOnline) {
-        showError('Não foi possível conectar ao servidor. Verifique se o backend está em execução.');
-    }
-    
-    // Buscar dados iniciais
-    await fetchData();
-    
-    // Configurar atualização periódica dos dados (a cada 5 segundos)
-    setInterval(fetchData, 5000);
-    
-    // Adicionar mensagens iniciais ao chat
-    addMessageToChat('Admin', 'Bem-vindo ao chat! Envie suas dúvidas aqui.');
-    addMessageToChat('Suporte', 'Estamos online para ajudar.');
-});
+// Verificar status ao carregar a página
+window.addEventListener('load', verificarStatus);
